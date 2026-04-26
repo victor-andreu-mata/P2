@@ -146,6 +146,9 @@ Ejercicios
   > dificultada. Puede detectar esta situación visualizando el nivel de potencia estimado por el propio
   > `wavesurfer` y corregirla usando la herramienta de corte (:scissors:).
 
+ Se ha eliminado el principio de nuestra grabación ya que era un segmento de silencio de potencia mucho más baja 
+ que el resto de ruido normal.
+![alt text](image-1.png)
 - Etiquete manualmente los segmentos de voz y silencio del fichero grabado al efecto. Inserte, a
   continuación, una captura de `wavesurfer` en la que se vea con claridad la señal temporal, el contorno de
   potencia y la tasa de cruces por cero, junto con el etiquetado manual de los segmentos.
@@ -155,10 +158,16 @@ Ejercicios
   * Incremento del nivel potencia en dB, respecto al nivel correspondiente al silencio inicial, para
     estar seguros de que un segmento de señal se corresponde con voz.
 
+ Observando el panel de potencia, el silencio de fondo se sitúa estable en torno a los 20 dB. Durante los segmentos de voz, los picos de potencia alcanzan valores de entre 40 dB y 60 dB. Por lo tanto, un incremento de unos 10 a 15 dB respecto al nivel de silencio (estableciendo un umbral alrededor de los 30-35 dB) se podría considerar un valor robusto. Este margen es lo suficientemente alto para no confundir ruidos de fondo suaves con voz, y lo suficientemente bajo para no perder el inicio de locuciones suaves.
+
   * Duración mínima razonable de los segmentos de voz y silencio.
+
+En el caso de nuestra grabación y del habla en general:
+Para la voz, una duración mínima de 100-150 ms es adecuada para captar sílabas cortas y evitar ruidos impulsivos. Para el silencio, se recomienda un mínimo de 150-200 ms para no fragmentar frases debido a las micro-pausas naturales entre palabras o fonemas oclusivos.
 
   * ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
 
+Gráficamente se ve que no se puede sacar una conclusión definitiva basándose solo en la evolución de la tasa de cruces por cero, pero es una ayuda complementaria que puede ser útil. Permite identificar mejor los fonemas que tienen poca energía pero muchos cruces por cero, ayudando con los segmentos donde la potencia por sí sola no es tan clara.
 
 ### Desarrollo del detector de actividad vocal
 
@@ -167,12 +176,25 @@ Ejercicios
 
 - Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección
   automática conseguida para el fichero grabado al efecto. 
-
+![alt text](image-3.png)
 - Explique, si existen. las discrepancias entre el etiquetado manual y la detección automática.
+
+Las principales diferencias que se ven entre el etiquetado manual y la detección automática se concentran en las fronteras de los segmentos de voz o silencio.
+
+En el etiquetado manual se agrupa los sonidos de forma natural por contexto semántico, anticipando el inicio de una palabra e ignorando pausas microscópicas, mientras que el algoritmo toma decisiones estrictamente matemáticas basándose en la energía de la señal trama a trama.
+
+Para evitar una fragmentación excesiva provocada por consonantes donde la energía cae, se ha implementado una máquina de estados con inercia mediante contadores temporales (hangover). Como consecuencia matemática directa, el sistema exige un número mínimo de tramas consecutivas por encima (o por debajo) del umbral para confirmar definitivamente una transición de estado. Esto introduce una  latencia, provocando que las fronteras detectadas automáticamente aparezcan ligeramente desplazadas  respecto al corte manual. Se asume un leve retraso en los límites temporales a cambio de una precisión y continuidad lógicas mucho mayores en la detección del segmento completo.
 
 - Evalúe los resultados sobre la base de datos `db.v4` con el script `vad_evaluation.pl` e inserte a 
   continuación las tasas de sensibilidad (*recall*) y precisión para el conjunto de la base de datos (sólo
   el resumen).
+
+Después de buscar con funciones y scripts el valor del umbral (7.5) para determinar el sonido y silencio, 
+los resultados encontrados son los siguientes:
+**************** Summary ****************
+Recall V:560.78/590.75 94.93%   Precision V:560.78/635.44 88.25%   F-score V (2)  : 93.51%
+Recall S:301.60/376.26 80.16%   Precision S:301.60/331.56 90.96%   F-score S (1/2): 88.57%
+===> TOTAL: 91.010%
 
 
 ### Trabajos de ampliación
@@ -182,12 +204,17 @@ Ejercicios
 - Si ha desarrollado el algoritmo para la cancelación de los segmentos de silencio, inserte una gráfica en
   la que se vea con claridad la señal antes y después de la cancelación (puede que `wavesurfer` no sea la
   mejor opción para esto, ya que no es capaz de visualizar varias señales al mismo tiempo).
+ 
+ Como se puede observar en la comparativa, la cancelación de ruido se ha implementado con éxito. En la señal original existe un ruido de fondo visible entre las locuciones. Al aplicar la lógica del detector de actividad vocal, la señal procesada muestra cómo esos segmentos de silencio han sido forzados a un valor igual a cero.
+
+  ![alt text](image-4.png)
 
 #### Gestión de las opciones del programa usando `docopt_c`
 
 - Si ha usado `docopt_c` para realizar la gestión de las opciones y argumentos del programa `vad`, inserte
   una captura de pantalla en la que se vea el mensaje de ayuda del programa.
 
+![alt text](image-5.png)
 
 ### Contribuciones adicionales y/o comentarios acerca de la práctica
 
@@ -203,3 +230,5 @@ Ejercicios
 Recuerde comprobar que el repositorio cuenta con los códigos correctos y en condiciones de ser 
 correctamente compilados con la orden `meson bin; ninja -C bin`. El programa generado (`bin/vad`) será
 el usado, sin más opciones, para realizar la evaluación *ciega* del sistema.
+
+

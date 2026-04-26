@@ -94,8 +94,14 @@ int main(int argc, char *argv[]) {
       last_t = t;
     }
 
-    if (sndfile_out != 0) {
-      /* TODO: go back and write zeros in silence segments */
+    if (sndfile_out != 0) { //Nuevo código
+      if (state == ST_SILENCE || state == ST_INIT) {
+        // Si es silencio, escribimos el array lleno de ceros
+        sf_write_float(sndfile_out, buffer_zeros, frame_size);
+      } else {
+        // Si es voz (u otro estado), escribimos el audio original
+        sf_write_float(sndfile_out, buffer, frame_size);
+      }
     }
   }
 

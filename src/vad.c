@@ -80,28 +80,63 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
 
 VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha0) {
 
-  /* 
-   * TODO: You can change this, using your own features,
-   * program finite state automaton, define conditions, etc.
-   */
-
   Features f = compute_features(x, vad_data->frame_length);
+
+  // Guardado del ZCR para Wavesurfer
+  static FILE *zcr_file = NULL;
+  if (zcr_file == NULL) {
+      zcr_file = fopen("pav_2111.zcr", "w");
+  }
+  fprintf(zcr_file, "%f\n", f.zcr);
+
   vad_data->last_feature = f.p; /* save feature, in case you want to show */
+
+  // --- NUEVAS VARIABLES DE INERCIA ---
+  // Utilizamos 'static' para que mantengan su valor entre llamada y llamada
+  static int count_silence = 0;
+  static int count_voice = 0;
+
+  // Estos son los umbrales de inercia (puedes jugar con estos números).
+  // Representan cuántas tramas consecutivas deben cumplir la condición.
+  const int HANGOVER_SILENCE = 10; // Tramas para confirmar que el silencio es real
+  const int HANGOVER_VOICE = 5;    // Tramas para confirmar que la voz es real
 
   switch (vad_data->state) {
   case ST_INIT:
     vad_data->state = ST_SILENCE;
-    vad_data->llindar_0 = f.p + alpha0; // pasamos a argumento a línea de comando
+    vad_data->llindar_0 = f.p + alpha0; // Umbral base + alpha0
+    
+    // Reiniciamos contadores por seguridad
+    count_silence = 0;
+    count_voice = 0;
     break;
 
   case ST_SILENCE:
-    if (f.p > vad_data->llindar_0)
-      vad_data->state = ST_VOICE;
+    if (f.p > vad_data->llindar_0) {
+      // Posible inicio de voz, empezamos a contar
+      count_voice++;
+      if (count_voice >= HANGOVER_VOICE) {
+        vad_data->state = ST_VOICE; // ¡Confirmado! Es voz.
+        count_voice = 0;            // Reiniciamos el contador
+      }
+    } else {
+      // Falsa alarma (ruido puntual), reiniciamos contador
+      count_voice = 0;
+    }
     break;
 
   case ST_VOICE:
-    if (f.p < vad_data->llindar_0)
-      vad_data->state = ST_SILENCE;
+    if (f.p < vad_data->llindar_0) {
+      // Posible pausa o silencio, empezamos a contar
+      count_silence++;
+      if (count_silence >= HANGOVER_SILENCE) {
+        vad_data->state = ST_SILENCE; // ¡Confirmado! El silencio es largo.
+        count_silence = 0;            // Reiniciamos el contador
+      }
+    } else {
+      // Falsa alarma (consonante sorda puntual), reiniciamos contador
+      count_silence = 0;
+    }
     break;
 
   case ST_UNDEF:
